@@ -9,3 +9,4 @@ input.txt
 *.ipynb
 !Lesson*/*.ipynb
 *.pt
+.DS_Store
