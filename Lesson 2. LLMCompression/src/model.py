@@ -250,3 +250,20 @@ class GPTLanguageModel(nn.Module):
             # Добавляем к текущей последовательности
             idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
         return idx
+
+    @torch.no_grad()
+    def generate_stream(self, idx, max_new_tokens):
+        """ Генерация текста в виде потока (yield) для B=1 """
+        for _ in range(max_new_tokens):
+            # Обрезаем контекст
+            idx_cond = idx[:, -block_size:]
+            # Получаем логиты
+            logits, _ = self(idx_cond)
+            logits = logits[:, -1, :]
+            probs = F.softmax(logits, dim=-1)
+            # Сэмплируем следующий токен
+            idx_next = torch.multinomial(probs, num_samples=1)
+            # Обновляем контекст
+            idx = torch.cat((idx, idx_next), dim=1)
+            # Возвращаем токен (предполагаем batch_size=1)
+            yield idx_next.item()
