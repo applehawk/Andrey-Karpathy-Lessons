@@ -17,4 +17,7 @@ dependencies = [
     "transformers",
     "accelerate",
     "sentencepiece",
+    "peft",
+    "bitsandbytes",
+    "optimum",
 ]
