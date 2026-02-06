@@ -2,7 +2,7 @@
 # Local reference: external/ng-video-lecture/gpt.py
 
 import torch
-from src.model import GPTLanguageModel, device, get_batch, estimate_loss
+from src.model import GPTLanguageModel, device, get_batch, estimate_loss, decode
 import time
 
 # Hyperparameters for quick training
@@ -49,4 +49,4 @@ print(f"Model saved to {checkpoint_path}")
 # Quick generation test
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 print("--- Sample Output ---")
-print(model.generate(context, max_new_tokens=100)[0].tolist())
+print(decode(model.generate(context, max_new_tokens=100)[0].tolist()))

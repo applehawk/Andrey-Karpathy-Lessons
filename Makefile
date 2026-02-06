@@ -7,6 +7,9 @@ help:
 	@echo "Available commands:"
 	@echo "  make install  - Install dependencies and setup kernels for all lessons"
 	@echo "  make format   - Format code in all lessons using Ruff"
+	@echo "  make train-gpt - Train the nanoGPT model"
+	@echo "  make generate-gpt - Generate text from trained nanoGPT"
+	@echo "  make chat-gpt - Interactive chat with nanoGPT"
 	@echo "  make clean    - Remove all virtual environments and kernels"
 
 install: submodules
@@ -30,3 +33,12 @@ clean:
 	$(MAKE) -C "Lesson 1. Micrograd" clean
 	@echo "Cleaning Lesson 2..."
 	$(MAKE) -C "Lesson 2. nanoGPT" clean
+
+train-gpt:
+	$(MAKE) -C "Lesson 2. nanoGPT" train
+
+generate-gpt:
+	$(MAKE) -C "Lesson 2. nanoGPT" generate
+
+chat-gpt:
+	$(MAKE) -C "Lesson 2. nanoGPT" chat

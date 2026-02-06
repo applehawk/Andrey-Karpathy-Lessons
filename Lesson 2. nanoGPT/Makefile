@@ -7,6 +7,15 @@ install:
 	uv sync
 	uv run python -m ipykernel install --user --name=$(KERNEL_NAME) --display-name $(DISPLAY_NAME)
 
+train:
+	uv run python train.py
+
+generate:
+	uv run python generate.py
+
+chat:
+	uv run python chat.py
+
 format:
 	uv run ruff format .
 	uv run ruff check --fix .
