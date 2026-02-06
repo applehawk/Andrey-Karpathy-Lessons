@@ -1,0 +1,14 @@
+.venv/
+.direnv/
+.envrc
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.ruff_cache/
+.python-version
+uv.lock
+pyproject.toml
+kernel_install.log
+input.txt
+*.ipynb
+!Lesson*/*.ipynb
