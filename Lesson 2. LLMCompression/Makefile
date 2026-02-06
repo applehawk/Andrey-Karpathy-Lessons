@@ -1,6 +1,6 @@
 .PHONY: install format clean
 
-KERNEL_NAME=LLMCompression
+KERNEL_NAME=llmcompression
 DISPLAY_NAME="Python 3.13 (LLMCompression)"
 
 install:
@@ -22,4 +22,4 @@ format:
 
 clean:
 	rm -rf .venv uv.lock
-	jupyter kernelspec uninstall $(KERNEL_NAME) -y
+	-jupyter kernelspec uninstall $(KERNEL_NAME) -y

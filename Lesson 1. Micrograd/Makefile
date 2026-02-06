@@ -16,4 +16,4 @@ format:
 
 clean:
 	rm -rf .venv
-	jupyter kernelspec uninstall $(KERNEL_NAME) -y
+	-jupyter kernelspec uninstall $(KERNEL_NAME) -y
