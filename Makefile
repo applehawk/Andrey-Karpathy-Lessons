@@ -16,7 +16,7 @@ install: submodules
 	@echo "Installing Lesson 1..."
 	$(MAKE) -C "Lesson 1. Micrograd" install
 	@echo "Installing Lesson 2..."
-	$(MAKE) -C "Lesson 2. nanoGPT" install
+	$(MAKE) -C "Lesson 2. LLMCompression" install
 
 submodules:
 	@echo "Initializing submodules..."
@@ -26,19 +26,19 @@ format:
 	@echo "Formatting Lesson 1..."
 	$(MAKE) -C "Lesson 1. Micrograd" format
 	@echo "Formatting Lesson 2..."
-	$(MAKE) -C "Lesson 2. nanoGPT" format
+	$(MAKE) -C "Lesson 2. LLMCompression" format
 
 clean:
 	@echo "Cleaning Lesson 1..."
 	$(MAKE) -C "Lesson 1. Micrograd" clean
 	@echo "Cleaning Lesson 2..."
-	$(MAKE) -C "Lesson 2. nanoGPT" clean
+	$(MAKE) -C "Lesson 2. LLMCompression" clean
 
 train-gpt:
-	$(MAKE) -C "Lesson 2. nanoGPT" train
+	$(MAKE) -C "Lesson 2. LLMCompression" train
 
 generate-gpt:
-	$(MAKE) -C "Lesson 2. nanoGPT" generate
+	$(MAKE) -C "Lesson 2. LLMCompression" generate
 
 chat-gpt:
-	$(MAKE) -C "Lesson 2. nanoGPT" chat
+	$(MAKE) -C "Lesson 2. LLMCompression" chat

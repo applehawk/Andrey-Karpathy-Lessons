@@ -8,3 +8,4 @@ kernel_install.log
 input.txt
 *.ipynb
 !Lesson*/*.ipynb
+*.pt
