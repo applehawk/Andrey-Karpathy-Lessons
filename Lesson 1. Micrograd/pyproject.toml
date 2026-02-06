@@ -1,0 +1,22 @@
+[project]
+name = "lesson-1-micrograd"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "ipykernel>=7.1.0",
+    "matplotlib>=3.10.8",
+    "notebook>=7.5.3",
+    "numpy>=2.4.2",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.0",
+]
+
+[tool.uv.workspace]
+members = [
+    "Lesson 2. nanoGPT",
+]
