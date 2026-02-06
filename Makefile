@@ -9,11 +9,15 @@ help:
 	@echo "  make format   - Format code in all lessons using Ruff"
 	@echo "  make clean    - Remove all virtual environments and kernels"
 
-install:
+install: submodules
 	@echo "Installing Lesson 1..."
 	$(MAKE) -C "Lesson 1. Micrograd" install
 	@echo "Installing Lesson 2..."
 	$(MAKE) -C "Lesson 2. nanoGPT" install
+
+submodules:
+	@echo "Initializing submodules..."
+	git submodule update --init --recursive
 
 format:
 	@echo "Formatting Lesson 1..."

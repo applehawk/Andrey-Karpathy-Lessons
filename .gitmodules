@@ -1,0 +1,9 @@
+[submodule "external/micrograd"]
+	path = external/micrograd
+	url = https://github.com/karpathy/micrograd.git
+[submodule "external/ng-video-lecture"]
+	path = external/ng-video-lecture
+	url = https://github.com/karpathy/ng-video-lecture.git
+[submodule "external/nanoGPT"]
+	path = external/nanoGPT
+	url = https://github.com/karpathy/nanoGPT.git

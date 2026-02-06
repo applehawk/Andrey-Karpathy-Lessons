@@ -1,3 +1,6 @@
+# Original source: https://github.com/karpathy/ng-video-lecture/blob/master/gpt.py
+# Local reference: external/ng-video-lecture/gpt.py
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F

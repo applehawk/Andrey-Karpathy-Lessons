@@ -1,5 +1,5 @@
 import torch
-import model
+from src import model
 import time
 import os
 
