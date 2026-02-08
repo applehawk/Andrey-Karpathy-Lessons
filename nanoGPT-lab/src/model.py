@@ -203,7 +203,7 @@ class GPTLanguageModel(nn.Module):
 
         return logits, loss
 
-    def generate(self, idx, max_new_tokens):
+    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None, top_p=None):
         """Iterative text generation token by token"""
         for _ in range(max_new_tokens):
             # Crop context to block_size
@@ -212,10 +212,78 @@ class GPTLanguageModel(nn.Module):
             logits, loss = self.forward(idx_cond)
             # Take only the last time step
             logits = logits[:, -1, :]  # (B, C)
+            
+            # Apply temperature
+            logits = logits / temperature
+            
+            # Optional Top-K sampling
+            if top_k is not None:
+                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = -float('Inf')
+
             # Softmax converts logits to probabilities
             probs = F.softmax(logits, dim=-1)  # (B, C)
+            
+            # Optional Top-P (Nucleus) sampling
+            if top_p is not None:
+                sorted_probs, sorted_indices = torch.sort(probs, descending=True)
+                cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+                
+                # Remove tokens with cumulative probability above the threshold
+                sorted_indices_to_remove = cumulative_probs > top_p
+                # Shift the indices to the right to keep also the first token above the threshold
+                sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                sorted_indices_to_remove[..., 0] = 0
+                
+                indices_to_remove = sorted_indices_to_remove.scatter(1, sorted_indices, sorted_indices_to_remove)
+                probs[indices_to_remove] = 0
+                probs = probs / probs.sum(dim=-1, keepdim=True) # re-normalize
+
             # Sample from the distribution
             idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
             # Append to current sequence
             idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
         return idx
+
+
+    @torch.no_grad()
+    def generate_stream(self, idx, max_new_tokens, temperature=1.0, top_k=None, top_p=None):
+        """
+        Генерация текста в виде потока (yield) для streaming inference.
+        Supports temperature, top-k, and top-p sampling.
+        """
+        for _ in range(max_new_tokens):
+            # Обрезаем контекст
+            idx_cond = idx[:, -block_size:]
+            # Получаем логиты
+            logits, _ = self(idx_cond)
+            logits = logits[:, -1, :]
+            
+            # Apply temperature
+            logits = logits / temperature
+            
+            # Optional Top-K sampling
+            if top_k is not None:
+                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = -float('Inf')
+
+            # Softmax
+            probs = F.softmax(logits, dim=-1)
+
+            # Optional Top-P sampling
+            if top_p is not None:
+                sorted_probs, sorted_indices = torch.sort(probs, descending=True)
+                cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+                sorted_indices_to_remove = cumulative_probs > top_p
+                sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                sorted_indices_to_remove[..., 0] = 0
+                indices_to_remove = sorted_indices_to_remove.scatter(1, sorted_indices, sorted_indices_to_remove)
+                probs[indices_to_remove] = 0
+                probs = probs / probs.sum(dim=-1, keepdim=True)
+
+            # Сэмплируем следующий токен
+            idx_next = torch.multinomial(probs, num_samples=1)
+            # Обновляем контекст
+            idx = torch.cat((idx, idx_next), dim=1)
+            # Возвращаем токен (предполагаем batch_size=1)
+            yield idx_next.item()
