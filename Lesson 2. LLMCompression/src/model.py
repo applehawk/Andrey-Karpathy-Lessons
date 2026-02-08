@@ -12,18 +12,22 @@ from torch.nn import functional as F
 # объем памяти и потенциал сжатия.
 # $C = n\_embd$, $L = n\_layer$, $H = n\_head$
 
-batch_size = 64     # Количество независимых последовательностей в одном батче (B)
-block_size = 256    # Максимальный контекст предсказания (T)
-max_iters = 5000    # Всего итераций обучения
-eval_interval = 500 # Как часто замерять лосс
+batch_size = 64  # Количество независимых последовательностей в одном батче (B)
+block_size = 256  # Максимальный контекст предсказания (T)
+max_iters = 5000  # Всего итераций обучения
+eval_interval = 500  # Как часто замерять лосс
 learning_rate = 3e-4
 # Авто-выбор устройства: MPS (Mac), CUDA (Nvidia) или CPU
-device = 'mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu')
-eval_iters = 200    # Количество батчей для оценки лосса
-n_embd = 384        # Размерность эмбеддинга (C)
-n_head = 6          # Количество голов внимания (h)
-n_layer = 6         # Количество слоев Transformer (L)
-dropout = 0.2       # Вероятность зануления активаций для регуляризации
+device = (
+    "mps"
+    if torch.backends.mps.is_available()
+    else ("cuda" if torch.cuda.is_available() else "cpu")
+)
+eval_iters = 200  # Количество батчей для оценки лосса
+n_embd = 384  # Размерность эмбеддинга (C)
+n_head = 6  # Количество голов внимания (h)
+n_layer = 6  # Количество слоев Transformer (L)
+dropout = 0.2  # Вероятность зануления активаций для регуляризации
 
 print(f"Using device: {device}")
 
@@ -33,39 +37,45 @@ print(f"Using device: {device}")
 torch.manual_seed(1337)
 
 # wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
-with open('input.txt', 'r', encoding='utf-8') as f:
+with open("input.txt", "r", encoding="utf-8") as f:
     text = f.read()
 
 # Символьный токенизатор (Vocabulary size V)
 chars = sorted(list(set(text)))
 vocab_size = len(chars)
 # create a mapping from characters to integers
-stoi = { ch:i for i,ch in enumerate(chars) }
-itos = { i:ch for i,ch in enumerate(chars) }
-encode = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers
-decode = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+stoi = {ch: i for i, ch in enumerate(chars)}
+itos = {i: ch for i, ch in enumerate(chars)}
+encode = lambda s: [
+    stoi[c] for c in s
+]  # encoder: take a string, output a list of integers
+decode = lambda l: "".join(
+    [itos[i] for i in l]
+)  # decoder: take a list of integers, output a string
 
 # Разделение на Train/Val (90/10)
 data = torch.tensor(encode(text), dtype=torch.long)
-n = int(0.9*len(data)) # first 90% will be train, rest val
+n = int(0.9 * len(data))  # first 90% will be train, rest val
 train_data = data[:n]
 val_data = data[n:]
+
 
 # data loading
 def get_batch(split):
     # generate a small batch of data of inputs x and targets y
-    data = train_data if split == 'train' else val_data
+    data = train_data if split == "train" else val_data
     ix = torch.randint(len(data) - block_size, (batch_size,))
-    x = torch.stack([data[i:i+block_size] for i in ix])
-    y = torch.stack([data[i+1:i+block_size+1] for i in ix])
+    x = torch.stack([data[i : i + block_size] for i in ix])
+    y = torch.stack([data[i + 1 : i + block_size + 1] for i in ix])
     x, y = x.to(device), y.to(device)
     return x, y
+
 
 @torch.no_grad()
 def estimate_loss(model):
     out = {}
     model.eval()
-    for split in ['train', 'val']:
+    for split in ["train", "val"]:
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
             X, Y = get_batch(split)
@@ -75,12 +85,14 @@ def estimate_loss(model):
     model.train()
     return out
 
+
 # ==============================================================================
 # 3. КОМПОНЕНТЫ МОДЕЛИ (Model Architecture)
 # ==============================================================================
 
+
 class Head(nn.Module):
-    """ 
+    """
     Одна голова Self-Attention.
     Здесь вычисляются Query (Q), Key (K) и Value (V).
     Формула: $Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V$
@@ -93,28 +105,31 @@ class Head(nn.Module):
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
         # Маска для Causal Attention (чтобы не смотреть в будущее)
-        self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
+        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         # input of size (batch, time-step, channels)
         # output of size (batch, time-step, head size)
-        B,T,C = x.shape
-        k = self.key(x)   # (B,T,hs)
-        q = self.query(x) # (B,T,hs)
+        B, T, C = x.shape
+        k = self.key(x)  # (B,T,hs)
+        q = self.query(x)  # (B,T,hs)
         # Вычисление аффинити (схожести токенов)
         # Scaled Dot-Product: $score = \frac{Q \cdot K^T}{\sqrt{C}}$
-        wei = q @ k.transpose(-2,-1) * k.shape[-1]**-0.5 # (B, T, hs) @ (B, hs, T) -> (B, T, T)
-        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
-        wei = F.softmax(wei, dim=-1) # (B, T, T)
+        wei = (
+            q @ k.transpose(-2, -1) * k.shape[-1] ** -0.5
+        )  # (B, T, hs) @ (B, hs, T) -> (B, T, T)
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float("-inf"))  # (B, T, T)
+        wei = F.softmax(wei, dim=-1)  # (B, T, T)
         wei = self.dropout(wei)
         # perform the weighted aggregation of the values
-        v = self.value(x) # (B,T,hs)
-        out = wei @ v # (B, T, T) @ (B, T, hs) -> (B, T, hs)
+        v = self.value(x)  # (B,T,hs)
+        out = wei @ v  # (B, T, T) @ (B, T, hs) -> (B, T, hs)
         return out
 
+
 class MultiHeadAttention(nn.Module):
-    """ 
+    """
     Параллельный запуск нескольких голов внимания.
     Позволяет модели одновременно фокусироваться на разных аспектax контекста.
     """
@@ -132,8 +147,9 @@ class MultiHeadAttention(nn.Module):
         out = self.dropout(self.proj(out))
         return out
 
+
 class FeedFoward(nn.Module):
-    """ 
+    """
     Полносвязная сеть (MLP).
     "Индивидуальное размышление" каждого токена после обмена информацией.
     Формула: $FFN(x) = ReLU(xW_1 + b_1)W_2 + b_2$
@@ -153,8 +169,9 @@ class FeedFoward(nn.Module):
     def forward(self, x):
         return self.net(x)
 
+
 class Block(nn.Module):
-    """ 
+    """
     Transformer Block: Communication (Attention) + Computation (FFN).
     Использует Residual Connections и LayerNorm перед слоями (Pre-norm).
     $x = x + SA(LN(x))$
@@ -175,12 +192,13 @@ class Block(nn.Module):
         x = x + self.ffwd(self.ln2(x))
         return x
 
+
 # ==============================================================================
 # 4. ГЛАВНАЯ МОДЕЛЬ (The GPT Model)
 # ==============================================================================
 
-class GPTLanguageModel(nn.Module):
 
+class GPTLanguageModel(nn.Module):
     def __init__(self):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
@@ -189,7 +207,9 @@ class GPTLanguageModel(nn.Module):
         # Position Embedding Table (T -> C)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
         # Стек из L блоков Transformer
-        self.blocks = nn.Sequential(*[Block(n_embd, n_head=n_head) for _ in range(n_layer)])
+        self.blocks = nn.Sequential(
+            *[Block(n_embd, n_head=n_head) for _ in range(n_layer)]
+        )
         # Финальная нормировка
         self.ln_f = nn.LayerNorm(n_embd)
         # Выходной линейный слой до размера словаря
@@ -212,48 +232,48 @@ class GPTLanguageModel(nn.Module):
 
         # idx and targets are both (B,T) tensor of integers
         # 1. Эмбеддинги (Смысл + Позиция)
-        tok_emb = self.token_embedding_table(idx) # (B,T,C)
-        pos_emb = self.position_embedding_table(torch.arange(T, device=device)) # (T,C)
-        x = tok_emb + pos_emb # (B,T,C)
-        
+        tok_emb = self.token_embedding_table(idx)  # (B,T,C)
+        pos_emb = self.position_embedding_table(torch.arange(T, device=device))  # (T,C)
+        x = tok_emb + pos_emb  # (B,T,C)
+
         # 2. Обработка блоками внимания
-        x = self.blocks(x) # (B,T,C)
-        x = self.ln_f(x) # (B,T,C)
-        
+        x = self.blocks(x)  # (B,T,C)
+        x = self.ln_f(x)  # (B,T,C)
+
         # 3. Вычисление логитов (вероятностей символов)
-        logits = self.lm_head(x) # (B,T,vocab_size)
+        logits = self.lm_head(x)  # (B,T,vocab_size)
 
         if targets is None:
             loss = None
         else:
             # Превращаем в плоский список для функции Cross Entropy
             B, T, C = logits.shape
-            logits = logits.view(B*T, C)
-            targets = targets.view(B*T)
+            logits = logits.view(B * T, C)
+            targets = targets.view(B * T)
             loss = F.cross_entropy(logits, targets)
 
         return logits, loss
 
     def generate(self, idx, max_new_tokens):
-        """ Итеративная генерация текста токен за токеном """
+        """Итеративная генерация текста токен за токеном"""
         for _ in range(max_new_tokens):
             # Обрезаем контекст до block_size
             idx_cond = idx[:, -block_size:]
             # Получаем предсказания
             logits, loss = self(idx_cond)
             # Берем только последний временной шаг
-            logits = logits[:, -1, :] # (B, C)
+            logits = logits[:, -1, :]  # (B, C)
             # Softmax превращает логиты в вероятности
-            probs = F.softmax(logits, dim=-1) # (B, C)
+            probs = F.softmax(logits, dim=-1)  # (B, C)
             # Сэмплируем из распределения
-            idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
+            idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
             # Добавляем к текущей последовательности
-            idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
+            idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
         return idx
 
     @torch.no_grad()
     def generate_stream(self, idx, max_new_tokens):
-        """ Генерация текста в виде потока (yield) для B=1 """
+        """Генерация текста в виде потока (yield) для B=1"""
         for _ in range(max_new_tokens):
             # Обрезаем контекст
             idx_cond = idx[:, -block_size:]

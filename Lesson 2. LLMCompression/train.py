@@ -6,7 +6,7 @@ from src.model import GPTLanguageModel, device, get_batch, estimate_loss, decode
 import time
 
 # Hyperparameters for quick training
-max_iters = 2000 # Enough to see some learning
+max_iters = 2000  # Enough to see some learning
 eval_interval = 500
 learning_rate = 3e-4
 eval_iters = 200
@@ -14,7 +14,7 @@ eval_iters = 200
 # Initialize model
 model = GPTLanguageModel().to(device)
 print(f"Training on: {device}")
-print(f"{sum(p.numel() for p in model.parameters())/1e6:.2f}M parameters")
+print(f"{sum(p.numel() for p in model.parameters()) / 1e6:.2f}M parameters")
 
 # Create optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
@@ -23,14 +23,15 @@ print("Starting training...")
 start_time = time.time()
 
 for iter in range(max_iters):
-
     # Every once in a while evaluate the loss on train and val sets
     if iter % eval_interval == 0 or iter == max_iters - 1:
         losses = estimate_loss(model)
-        print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+        print(
+            f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}"
+        )
 
     # Sample a batch of data
-    xb, yb = get_batch('train')
+    xb, yb = get_batch("train")
 
     # Evaluate the loss
     logits, loss = model(xb, yb)

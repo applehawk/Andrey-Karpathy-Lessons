@@ -1,4 +1,7 @@
-.PHONY: install format clean
+.PHONY: install format clean solve-paths lab
+
+lab:
+	uv run jupyter lab
 
 KERNEL_NAME=llmcompression
 DISPLAY_NAME="Python 3.13 (LLMCompression)"
@@ -19,6 +22,10 @@ chat:
 format:
 	uv run ruff format .
 	uv run ruff check --fix .
+
+# Fix paths in notebooks after moving to subdirectories
+solve-paths:
+	uv run python fix_paths.py
 
 clean:
 	rm -rf .venv uv.lock

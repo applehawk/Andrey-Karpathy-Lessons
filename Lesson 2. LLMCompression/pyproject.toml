@@ -20,4 +20,5 @@ dependencies = [
     "peft",
     "bitsandbytes",
     "optimum",
+    "jupyterlab>=4.1.0",
 ]

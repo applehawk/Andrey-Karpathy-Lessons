@@ -1,0 +1,7 @@
+{
+    "makefile.configureOnOpen": true,
+    "jupyter.notebookFileRoot": "${fileDirname}/..",
+    "python.analysis.extraPaths": [
+        "${fileDirname}/.."
+    ]
+}
