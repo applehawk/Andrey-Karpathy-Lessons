@@ -1,5 +1,6 @@
 import torch
-from src.model import GPTLanguageModel, device, decode
+from src.model import GPTLanguageModel, device
+from src.utils import decode
 
 
 def generate_text(max_tokens=500):

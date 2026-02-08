@@ -8,6 +8,7 @@ DISPLAY_NAME="Python 3.13 (LLMCompression)"
 
 install:
 	uv sync
+	uv pip install -e .
 	uv run python -m ipykernel install --user --name=$(KERNEL_NAME) --display-name $(DISPLAY_NAME)
 
 train:

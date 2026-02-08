@@ -1,5 +1,6 @@
 import torch
-from src.model import GPTLanguageModel, device, decode, encode
+from src.model import GPTLanguageModel, device
+from src.utils import decode, encode
 
 
 def chat():

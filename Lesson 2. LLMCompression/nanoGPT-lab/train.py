@@ -2,8 +2,10 @@
 # Local reference: external/ng-video-lecture/gpt.py
 
 import torch
-from src.model import GPTLanguageModel, device, get_batch, estimate_loss, decode
 import time
+
+from src.model import GPTLanguageModel, device
+from src.utils import get_batch, estimate_loss, decode
 
 # Hyperparameters for quick training
 max_iters = 2000  # Enough to see some learning
