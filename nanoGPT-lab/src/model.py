@@ -6,54 +6,54 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 # ==============================================================================
-# 1. ГИПЕРПАРАМЕТРЫ (Global Configuration)
+# 1. HYPERPARAMETERS (Global Configuration)
 # ==============================================================================
-# Эти параметры определяют "ширину" и "глубину" сети, что напрямую влияет на
-# объем памяти и потенциал сжатия.
+# These parameters define the "width" and "depth" of the network, which directly
+# affects memory usage and compression potential.
 # $C = n\_embd$, $L = n\_layer$, $H = n\_head$
 
-batch_size = 64  # Количество независимых последовательностей в одном батче (B)
-block_size = 256  # Максимальный контекст предсказания (T)
-max_iters = 5000  # Всего итераций обучения
-eval_interval = 500  # Как часто замерять лосс
+batch_size = 64  # Number of independent sequences in one batch (B)
+block_size = 256  # Maximum context length for predictions (T)
+max_iters = 5000  # Total training iterations
+eval_interval = 500  # How often to measure loss
 learning_rate = 3e-4
-# Авто-выбор устройства: MPS (Mac), CUDA (Nvidia) или CPU
+# Auto-select device: MPS (Mac), CUDA (Nvidia), or CPU
 device = (
     "mps"
     if torch.backends.mps.is_available()
     else ("cuda" if torch.cuda.is_available() else "cpu")
 )
-eval_iters = 200  # Количество батчей для оценки лосса
-n_embd = 384  # Размерность эмбеддинга (C)
-n_head = 6  # Количество голов внимания (h)
-n_layer = 6  # Количество слоев Transformer (L)
-dropout = 0.2  # Вероятность зануления активаций для регуляризации
+eval_iters = 200  # Number of batches for loss evaluation
+n_embd = 384  # Embedding dimension (C)
+n_head = 6  # Number of attention heads (h)
+n_layer = 6  # Number of Transformer layers (L)
+dropout = 0.2  # Probability of zeroing activations for regularization
 
-# Vocab size будет установлен после загрузки данных в utils.py
-# Здесь мы его объявляем, но значение придет из utils
+# Vocab size will be set after loading data in utils.py
+# We declare it here, but the value comes from utils
 vocab_size = None
 
 print(f"Using device: {device}")
 
 # ==============================================================================
-# 2. КОМПОНЕНТЫ МОДЕЛИ (Model Architecture)
+# 2. MODEL COMPONENTS (Model Architecture)
 # ==============================================================================
 
 
 class Head(nn.Module):
     r"""
-    Одна голова Self-Attention.
-    Здесь вычисляются Query (Q), Key (K) и Value (V).
-    Формула: $Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V$
+    One head of Self-Attention.
+    Computes Query (Q), Key (K), and Value (V).
+    Formula: $Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V$
     """
 
     def __init__(self, head_size):
         super().__init__()
-        # Линейные проекции без смещения (bias=False) — идеальные кандидаты для квантования
+        # Linear projections without bias (bias=False) — ideal candidates for quantization
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
-        # Маска для Causal Attention (чтобы не смотреть в будущее)
+        # Mask for Causal Attention (to prevent looking into the future)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
         self.dropout = nn.Dropout(dropout)
 
@@ -63,7 +63,7 @@ class Head(nn.Module):
         B, T, C = x.shape
         k = self.key(x)  # (B,T,hs)
         q = self.query(x)  # (B,T,hs)
-        # Вычисление аффинити (схожести токенов)
+        # Compute affinity (token similarity)
         # Scaled Dot-Product: $score = \frac{Q \cdot K^T}{\sqrt{C}}$
         wei = (
             q @ k.transpose(-2, -1) * k.shape[-1] ** -0.5
@@ -79,8 +79,8 @@ class Head(nn.Module):
 
 class MultiHeadAttention(nn.Module):
     """
-    Параллельный запуск нескольких голов внимания.
-    Позволяет модели одновременно фокусироваться на разных аспектax контекста.
+    Multiple heads of self-attention running in parallel.
+    Allows the model to simultaneously focus on different aspects of context.
     """
 
     def __init__(self, num_heads, head_size):
@@ -90,27 +90,27 @@ class MultiHeadAttention(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        # Склеиваем выходы всех голов по размерности каналов
+        # Concatenate outputs of all heads along the channel dimension
         out = torch.cat([h(x) for h in self.heads], dim=-1)
-        # Итоговая проекция обратно в n_embd
+        # Final projection back to n_embd
         out = self.dropout(self.proj(out))
         return out
 
 
 class FeedFoward(nn.Module):
     """
-    Полносвязная сеть (MLP).
-    "Индивидуальное размышление" каждого токена после обмена информацией.
-    Формула: $FFN(x) = ReLU(xW_1 + b_1)W_2 + b_2$
+    Fully-connected network (MLP).
+    "Individual thinking" of each token after information exchange.
+    Formula: $FFN(x) = ReLU(xW_1 + b_1)W_2 + b_2$
     """
 
     def __init__(self, n_embd):
         super().__init__()
         self.net = nn.Sequential(
-            # Расширение в 4 раза (стандарт GPT)
+            # Expand by 4x (GPT standard)
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
-            # Сжатие обратно
+            # Compress back
             nn.Linear(4 * n_embd, n_embd),
             nn.Dropout(dropout),
         )
@@ -122,7 +122,7 @@ class FeedFoward(nn.Module):
 class Block(nn.Module):
     """
     Transformer Block: Communication (Attention) + Computation (FFN).
-    Использует Residual Connections и LayerNorm перед слоями (Pre-norm).
+    Uses Residual Connections and LayerNorm before layers (Pre-norm).
     $x = x + SA(LN(x))$
     $x = x + FFN(LN(x))$
     """
@@ -143,7 +143,7 @@ class Block(nn.Module):
 
 
 # ==============================================================================
-# 4. ГЛАВНАЯ МОДЕЛЬ (The GPT Model)
+# 3. MAIN MODEL (The GPT Model)
 # ==============================================================================
 
 
@@ -155,16 +155,16 @@ class GPTLanguageModel(nn.Module):
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         # Position Embedding Table (T -> C)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        # Стек из L блоков Transformer
+        # Stack of L Transformer blocks
         self.blocks = nn.Sequential(
             *[Block(n_embd, n_head=n_head) for _ in range(n_layer)]
         )
-        # Финальная нормировка
+        # Final normalization
         self.ln_f = nn.LayerNorm(n_embd)
-        # Выходной линейный слой до размера словаря
+        # Output linear layer to vocabulary size
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
-        # Кастомная инициализация весов (Mean=0, Std=0.02)
+        # Custom weight initialization (Mean=0, Std=0.02)
         # better init, not covered in the original GPT video, but important, will cover in followup video
         self.apply(self._init_weights)
 
@@ -180,22 +180,22 @@ class GPTLanguageModel(nn.Module):
         B, T = idx.shape
 
         # idx and targets are both (B,T) tensor of integers
-        # 1. Эмбеддинги (Смысл + Позиция)
+        # 1. Embeddings (Meaning + Position)
         tok_emb = self.token_embedding_table(idx)  # (B,T,C)
         pos_emb = self.position_embedding_table(torch.arange(T, device=device))  # (T,C)
         x = tok_emb + pos_emb  # (B,T,C)
 
-        # 2. Обработка блоками внимания
+        # 2. Processing through attention blocks
         x = self.blocks(x)  # (B,T,C)
         x = self.ln_f(x)  # (B,T,C)
 
-        # 3. Вычисление логитов (вероятностей символов)
+        # 3. Computing logits (character probabilities)
         logits = self.lm_head(x)  # (B,T,vocab_size)
 
         if targets is None:
             loss = None
         else:
-            # Превращаем в плоский список для функции Cross Entropy
+            # Flatten for Cross Entropy function
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             targets = targets.view(B * T)
@@ -204,18 +204,18 @@ class GPTLanguageModel(nn.Module):
         return logits, loss
 
     def generate(self, idx, max_new_tokens):
-        """Итеративная генерация текста токен за токеном"""
+        """Iterative text generation token by token"""
         for _ in range(max_new_tokens):
-            # Обрезаем контекст до block_size
+            # Crop context to block_size
             idx_cond = idx[:, -block_size:]
-            # Получаем предсказания
-            logits, loss = self(idx_cond)
-            # Берем только последний временной шаг
+            # Get predictions
+            logits, loss = self.forward(idx_cond)
+            # Take only the last time step
             logits = logits[:, -1, :]  # (B, C)
-            # Softmax превращает логиты в вероятности
+            # Softmax converts logits to probabilities
             probs = F.softmax(logits, dim=-1)  # (B, C)
-            # Сэмплируем из распределения
+            # Sample from the distribution
             idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
-            # Добавляем к текущей последовательности
+            # Append to current sequence
             idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
         return idx

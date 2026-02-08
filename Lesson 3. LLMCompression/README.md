@@ -1,4 +1,4 @@
-# Lesson 2: LLM Compression
+# Lesson 3: LLM Compression
 
 This lesson is divided into two main stages covering the research foundations and large-scale application of Large Language Model compression techniques.
 

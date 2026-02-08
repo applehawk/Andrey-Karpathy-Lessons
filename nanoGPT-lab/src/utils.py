@@ -4,41 +4,43 @@
 import torch
 
 # ==============================================================================
-# ГИПЕРПАРАМЕТРЫ (Global Configuration)
+# HYPERPARAMETERS (Global Configuration)
 # ==============================================================================
-batch_size = 64  # Количество независимых последовательностей в одном батче (B)
-block_size = 256  # Максимальный контекст предсказания (T)
-max_iters = 5000  # Всего итераций обучения
-eval_interval = 500  # Как часто замерять лосс
+batch_size = 64  # Number of independent sequences in one batch (B)
+block_size = 256  # Maximum context length for predictions (T)
+max_iters = 5000  # Total training iterations
+eval_interval = 500  # How often to measure loss
 learning_rate = 3e-4
-# Авто-выбор устройства: MPS (Mac), CUDA (Nvidia) или CPU
+# Auto-select device: MPS (Mac), CUDA (Nvidia), or CPU
 device = (
     "mps"
     if torch.backends.mps.is_available()
     else ("cuda" if torch.cuda.is_available() else "cpu")
 )
-eval_iters = 200  # Количество батчей для оценки лосса
-n_embd = 384  # Размерность эмбеддинга (C)
-n_head = 6  # Количество голов внимания (h)
-n_layer = 6  # Количество слоев Transformer (L)
-dropout = 0.2  # Вероятность зануления активаций для регуляризации
+eval_iters = 200  # Number of batches for loss evaluation
+n_embd = 384  # Embedding dimension (C)
+n_head = 6  # Number of attention heads (h)
+n_layer = 6  # Number of Transformer layers (L)
+dropout = 0.2  # Probability of zeroing activations for regularization
 
 print(f"Using device: {device}")
 
 # ==============================================================================
-# ПОДГОТОВКА ДАННЫХ (Tokenizer & Data Loading)
+# DATA PREPARATION (Tokenizer & Data Loading)
 # ==============================================================================
 torch.manual_seed(1337)
 
 # wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
-with open("input.txt", "r", encoding="utf-8") as f:
+import os
+input_txt_path = os.path.join(os.path.dirname(__file__), "input.txt")
+with open(input_txt_path, "r", encoding="utf-8") as f:
     text = f.read()
 
-# Символьный токенизатор (Vocabulary size V)
+# Character-level tokenizer (Vocabulary size V)
 chars = sorted(list(set(text)))
 vocab_size = len(chars)
 
-# Устанавливаем vocab_size в модуле model (это гиперпараметр модели)
+# Set vocab_size in model module (it's a model hyperparameter)
 import src.model
 src.model.vocab_size = vocab_size
 
@@ -52,7 +54,7 @@ decode = lambda l: "".join(
     [itos[i] for i in l]
 )  # decoder: take a list of integers, output a string
 
-# Разделение на Train/Val (90/10)
+# Train/Val split (90/10)
 data = torch.tensor(encode(text), dtype=torch.long)
 n = int(0.9 * len(data))  # first 90% will be train, rest val
 train_data = data[:n]

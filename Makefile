@@ -1,44 +1,43 @@
-# Root Makefile to manage all lessons
+# Root Makefile to manage all lessons и nanoGPT resources
 
-.PHONY: install format clean help
+.PHONY: install format clean help lab train generate chat
 
 # Default target
 help:
 	@echo "Available commands:"
-	@echo "  make install  - Install dependencies and setup kernels for all lessons"
-	@echo "  make format   - Format code in all lessons using Ruff"
-	@echo "  make train-gpt - Train the nanoGPT model"
-	@echo "  make generate-gpt - Generate text from trained nanoGPT"
-	@echo "  make chat-gpt - Interactive chat with nanoGPT"
-	@echo "  make clean    - Remove all virtual environments and kernels"
+	@echo "  make install  - Install environment (uv sync) and setup jupyter kernel"
+	@echo "  make lab      - Run Jupyter Lab"
+	@echo "  make format   - Format code using Ruff"
+	@echo "  make train    - Train nanoGPT model"
+	@echo "  make generate - Generate text from trained nanoGPT"
+	@echo "  make chat     - Interactive chat with nanoGPT"
+	@echo "  make clean    - Remove virtual environment and cached files"
 
-install: submodules
-	@echo "Installing Lesson 1..."
-	$(MAKE) -C "Lesson 1. Micrograd" install
-	@echo "Installing Lesson 2..."
-	$(MAKE) -C "Lesson 2. LLMCompression" install
+install:
+	@echo "Installing project dependencies..."
+	uv sync
+	uv pip install -e .
+	@echo "Setting up Jupyter kernel..."
+	uv run python -m ipykernel install --user --name=llm-colab --display-name "Python 3.13 (LLM-Colab)"
 
-submodules:
-	@echo "Initializing submodules..."
-	git submodule update --init --recursive
+lab:
+	uv run jupyter lab
 
 format:
-	@echo "Formatting Lesson 1..."
-	$(MAKE) -C "Lesson 1. Micrograd" format
-	@echo "Formatting Lesson 2..."
-	$(MAKE) -C "Lesson 2. LLMCompression" format
+	uv run ruff format .
+	uv run ruff check --fix .
+
+train:
+	uv run python nanoGPT-lab/train.py
+
+generate:
+	uv run python nanoGPT-lab/generate.py
+
+chat:
+	uv run python nanoGPT-lab/chat.py
 
 clean:
-	@echo "Cleaning Lesson 1..."
-	$(MAKE) -C "Lesson 1. Micrograd" clean
-	@echo "Cleaning Lesson 2..."
-	$(MAKE) -C "Lesson 2. LLMCompression" clean
-
-train-gpt:
-	$(MAKE) -C "Lesson 2. LLMCompression" train
-
-generate-gpt:
-	$(MAKE) -C "Lesson 2. LLMCompression" generate
-
-chat-gpt:
-	$(MAKE) -C "Lesson 2. LLMCompression" chat
+	rm -rf .venv uv.lock
+	-jupyter kernelspec uninstall llm-colab -y
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type d -name "*.egg-info" -exec rm -rf {} +

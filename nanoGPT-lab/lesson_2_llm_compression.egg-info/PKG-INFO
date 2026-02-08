@@ -1,3 +1,26 @@
+Metadata-Version: 2.4
+Name: lesson-2-llm-compression
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+Requires-Dist: ipykernel>=7.1.0
+Requires-Dist: matplotlib>=3.10.8
+Requires-Dist: notebook>=7.5.3
+Requires-Dist: numpy>=2.4.2
+Requires-Dist: pandas>=3.0.0
+Requires-Dist: ruff>=0.15.0
+Requires-Dist: torch>=2.10.0
+Requires-Dist: torchaudio>=2.10.0
+Requires-Dist: torchvision>=0.25.0
+Requires-Dist: transformers
+Requires-Dist: accelerate
+Requires-Dist: sentencepiece
+Requires-Dist: peft
+Requires-Dist: bitsandbytes
+Requires-Dist: optimum
+Requires-Dist: jupyterlab>=4.1.0
+
 # Andrey Karpathy's Neural Networks Lessons
 
 This repository contains my progress and experiments through Andrey Karpathy's deep learning series.
